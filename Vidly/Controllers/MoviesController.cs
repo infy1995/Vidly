@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
-using System.Web;
 using System.Web.Mvc;
 using Vidly.Models;
 using Vidly.ViewModels;
@@ -11,7 +10,6 @@ namespace Vidly.Controllers
 {
     public class MoviesController : Controller
     {
-
         private ApplicationDbContext _context;
 
         public MoviesController()
@@ -31,6 +29,34 @@ namespace Vidly.Controllers
             return View(movies);
         }
 
+        public ViewResult New()
+        {
+            var genres = _context.Genres.ToList();
+
+            var viewModel = new MovieFormViewModel(new Movie())
+            {
+                Genres = genres
+            };
+
+            return View("MovieForm", viewModel);
+        }
+
+        public ActionResult Edit(int id)
+        {
+            var movie = _context.Movies.SingleOrDefault(c => c.Id == id);
+
+            if (movie == null)
+                return HttpNotFound();
+
+            var viewModel = new MovieFormViewModel(movie)
+            {
+                Genres = _context.Genres.ToList()
+            };
+
+            return View("MovieForm", viewModel);
+        }
+
+
         public ActionResult Details(int id)
         {
             var movie = _context.Movies.Include(m => m.Genre).SingleOrDefault(m => m.Id == id);
@@ -39,21 +65,43 @@ namespace Vidly.Controllers
                 return HttpNotFound();
 
             return View(movie);
+
         }
 
-        public ActionResult New()
+
+        // GET: Movies/Random
+        public ActionResult Random()
         {
-            var viewModel = new MovieFormViewModel
+            var movie = new Movie() { Name = "Shrek!" };
+            var customers = new List<Customer>
             {
-                Genres = _context.Genres.ToList()
+                new Customer { Name = "Customer 1" },
+                new Customer { Name = "Customer 2" }
             };
 
-            return View("MovieForm", viewModel);
+            var viewModel = new RandomMovieViewModel
+            {
+                Movie = movie,
+                Customers = customers
+            };
+
+            return View(viewModel);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public ActionResult Save(Movie movie)
         {
+            if (!ModelState.IsValid)
+            {
+                var viewModel = new MovieFormViewModel(movie)
+                {
+                    Genres = _context.Genres.ToList()
+                };
+
+                return View("MovieForm", viewModel);
+            }
+
             if (movie.Id == 0)
             {
                 movie.DateAdded = DateTime.Now;
@@ -71,22 +119,6 @@ namespace Vidly.Controllers
             _context.SaveChanges();
 
             return RedirectToAction("Index", "Movies");
-        }
-
-        public ActionResult Edit(int id)
-        {
-            var movie = _context.Movies.Single(m => m.Id == id);
-
-            if (movie == null)
-                return HttpNotFound();
-
-            var viewModel = new MovieFormViewModel
-            {
-                Movie = movie,
-                Genres = _context.Genres.ToList()
-            };
-
-            return View("MovieForm", viewModel);
         }
     }
 }
